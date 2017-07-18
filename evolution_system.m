@@ -2,7 +2,7 @@
 %clear all; close all; clc;
 
 % create grid
-Lx1=10; Leta=10;
+Lx1=20; Leta=10;
 Nx1 = 100; Neta = 100;
 dx1 = Lx1/Nx1; deta = Leta/Neta;
 x1 = (-dx1:dx1:Lx1+dx1/2)'; eta = -deta/2:deta:Leta+deta/2;
@@ -59,16 +59,9 @@ for i = 2:Nx1+1
     % Calculate v0
     v0sol(:,i) = v0sol(:,i-1) + dx1*q0sol(:,i);
     
-    % Calculate u0
-    u0sol(:,i) = -trapz(baseU.*v0sol(:,i)/baseT);
-    
     % Match T0
     T0sol(:,i+1) = T0sol(:,i) + dx1*(-baseTdash/baseT)*v0sol(:,i);
     
 end
-
-[X,Y] = meshgrid(x1,eta);
-figure
-quiver(X,Y,u0sol,v0sol)
 
 
