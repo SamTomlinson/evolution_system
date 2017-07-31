@@ -4,35 +4,33 @@
 
 %% create grid
 
-x1a=-20; x1b=40;
+% INPUT : bounds
+x1a=-10; x1b=20;
 etaa=1; etab=10;
+% lengths
 Lx1=(x1b-x1a); Leta=etab-etaa;
+% INPUT : number of grid points
 Nx1 = 1000; Neta = 1000;
+% stepsize
 dx1 = Lx1/Nx1; deta = Leta/Neta;
+% grid
 x1 = (x1a-0.5*dx1:dx1:x1b+0.5*dx1)'; eta = etaa-deta/2:deta:etab+deta/2;
 
 
-%% change folder for gotler initial condtions
+%% gotler initial condtions
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/shooting_gotler'
 
-% sovle for base flow 
+% paramters required in base flow
 C=0.509; Pr=1; D=1; 
-% const is Gstar-Q
-const=1;
-[eta,baseT,baseTdash,baseU,baseUdash] = baseflow(C,Pr,D,deta,-deta/2,Leta+deta/2);
-
-baseT = interp1(eta,baseT,-deta/2:deta:Leta+deta/2,'spline');
-baseTdash = interp1(eta,baseTdash,-deta/2:deta:Leta+deta/2,'spline');
-baseU = interp1(eta,baseU,-deta/2:deta:Leta+deta/2,'spline');
-baseUdash = interp1(eta,baseUdash,-deta/2:deta:Leta+deta/2,'spline');
-eta=-deta/2:deta:Leta+deta/2;
-
-% input an initial condition
+% INPUT : spanwise wavenumber
 khat=1;
-[eta, v1,eigval] = shooting_gotler3(@gotler,deta,-deta/2,Leta+deta/2,khat);
-% calculate beta from shooting method
+% calculate solution using shooting method
+[~, v1,eigval] = shooting_gotler3(@gotler,deta,etaa-deta/2,etab+deta/2,khat);
+% calculate beta using shooting method
 beta=eigval;
+% for checking whether eigenmodes look right
+%plot(v1(1,:),eta)
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
 
@@ -44,17 +42,17 @@ cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system/
 C=0.509; Pr=1; D=1; 
 % const is Gstar-Q
 const=1;
-[eta,baseT,baseTdash,baseU,baseUdash] = baseflow(C,Pr,D,deta,-deta/2,Leta+deta/2);
+[eta,baseT,baseTdash,baseU,baseUdash] = baseflow(C,Pr,D,deta,etaa-deta/2,etab+deta/2);
 
-baseT = interp1(eta,baseT,-deta/2:deta:Leta+deta/2,'spline');
-baseTdash = interp1(eta,baseTdash,-deta/2:deta:Leta+deta/2,'spline');
-baseU = interp1(eta,baseU,-deta/2:deta:Leta+deta/2,'spline');
-baseUdash = interp1(eta,baseUdash,-deta/2:deta:Leta+deta/2,'spline');
+baseT = interp1(eta,baseT,etaa-deta/2:deta:etab+deta/2,'spline');
+baseTdash = interp1(eta,baseTdash,etaa-deta/2:deta:etab+deta/2,'spline');
+baseU = interp1(eta,baseU,etaa-deta/2:deta:etab+deta/2,'spline');
+baseUdash = interp1(eta,baseUdash,etaa-deta/2:deta:etab+deta/2,'spline');
 eta=-deta/2:deta:Leta+deta/2;
 
 % input an initial condition
 khat=1;
-[eta, v2,eigval] = shooting_method(@fun,deta,0.01,-deta/2,Leta+deta/2,[0,0],'ff');
+[eta, v2,eigval] = shooting_method(@fun,deta,0.01,etaa-deta/2,etab+deta/2,[0,0],'ff');
 % calculate beta from shooting method
 kappa=eigval;
 
@@ -69,23 +67,23 @@ T0sol=zeros(length(eta),length(x1));
 % u0sol=zeros(length(eta),length(x1));
 
 % set up initial conditions to the left for gotler 
-v0sol(:,1)=v1(1,:)*exp(beta*(-Lx1/2-1.5*dx1));
-v0sol(:,2)=v1(1,:)*exp(beta*(-Lx1/2-0.5*dx1));
+v0sol(:,1)=v1(1,:)*exp(beta*(x1a-0.5*dx1));
+v0sol(:,2)=v1(1,:)*exp(beta*(x1b-0.5*dx1));
 % u0sol(:,1)=-trapz(baseU.*v0sol(:,1)/baseT);
 % u0sol(:,2)=-trapz(baseU.*v0sol(:,2)/baseT);
-T0sol(:,1)=((-baseTdash.*v1(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1));
-T0sol(:,2)=((-baseTdash.*v1(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1));
+T0sol(:,1)=((-baseTdash.*v1(1,:))./(baseT.*khat))*exp(beta*(x1a-0.5*dx1));
+T0sol(:,2)=((-baseTdash.*v1(1,:))./(baseT.*khat))*exp(beta*(x1a-0.5*dx1));
 q0sol(:,1)=zeros(size(v1(1,:)));
 q0sol(:,2)=(v0sol(:,2)-v0sol(:,1))/(dx1);
 
 % set up initial conditions to the left for rayleigh aswell 
 
-v0sol(:,1)=v0sol(:,1)+(v2(1,:)*exp(2*kappa*(-Lx1/2-1.5*dx1)))';
-v0sol(:,2)=v0sol(:,2)+(v2(1,:)*exp(2*kappa*(-Lx1/2-0.5*dx1)))';
+v0sol(:,1)=v0sol(:,1)+(v2(1,:)*exp(2*kappa*(x1a-0.5*dx1)))';
+v0sol(:,2)=v0sol(:,2)+(v2(1,:)*exp(2*kappa*(x1a-0.5*dx1)))';
 % u0sol(:,1)=-trapz(baseU.*v0sol(:,1)/baseT);
 % u0sol(:,2)=-trapz(baseU.*v0sol(:,2)/baseT);
-T0sol(:,1)=T0sol(:,1)+(((-baseTdash.*v2(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1)))';
-T0sol(:,2)=T0sol(:,2)+(((-baseTdash.*v2(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1)))';
+T0sol(:,1)=T0sol(:,1)+(((-baseTdash.*v2(1,:))./(baseT.*khat))*exp(2*kappa*(x1a-0.5*dx1)))';
+T0sol(:,2)=T0sol(:,2)+(((-baseTdash.*v2(1,:))./(baseT.*khat))*exp(2*kappa*(x1a-0.5*dx1)))';
 q0sol(:,1)=q0sol(:,1)+(zeros(size(v2(1,:))))';
 q0sol(:,2)=q0sol(:,2)+(v0sol(:,2)-v0sol(:,1))/(dx1);
 
