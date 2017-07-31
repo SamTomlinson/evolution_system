@@ -4,10 +4,13 @@
 
 %% create grid
 
-Lx1=10; Leta=10;
-Nx1 = 150; Neta = 100;
+x1a=-20; x1b=40;
+etaa=1; etab=10;
+Lx1=(x1b-x1a); Leta=etab-etaa;
+Nx1 = 1000; Neta = 1000;
 dx1 = Lx1/Nx1; deta = Leta/Neta;
-x1 = (-Lx1/2-1.5*dx1:dx1:Lx1/2+0.5*dx1)'; eta = -deta/2:deta:Leta+deta/2;
+x1 = (x1a-0.5*dx1:dx1:x1b+0.5*dx1)'; eta = etaa-deta/2:deta:etab+deta/2;
+
 
 %% change folder for gotler initial condtions
 
