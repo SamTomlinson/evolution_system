@@ -1,6 +1,9 @@
-% Finite differences code for solution of Gotler system 
+% Finite differences code for solution of Gotler system, evaluates 
+% intial conditions for Gotler modes and a pair of instability waves
+% then marches the solution downstream to get the evolution of 
+% velocoity and temperature.
 
-%clear all; close all; clc;
+clear all; close all; clc;
 
 %% create grid
 
@@ -22,7 +25,7 @@ x1 = (x1a-1.5*dx1:dx1:x1b+0.5*dx1)'; eta = etaa-deta/2:deta:etab+deta/2;
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/shooting_gotler'
 
 % paramters required in base flow
-C=0.509; Pr=1; D=1; 
+C=0.509; Pr=1; D=1; const=2;
 % INPUT : spanwise wavenumber
 khat=1;
 % calculate solution using shooting method
@@ -34,7 +37,7 @@ beta=sqrt(eigval);
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
 
-%% rayeligh initial condtions
+%% rayleigh initial condtions
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/shooting_gotler'
 
@@ -48,6 +51,18 @@ khat=1;
 kappa=sqrt(eigval)/4;
 % for checking whether eigenmodes look right
 %plot(v1(1,:),eta)
+
+cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
+
+%% base flow
+
+cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/shooting_gotler'
+
+% calculate andresize base flow vectors
+[eta,baseT,baseTdash,~,~]=baseflow(C,Pr,D,deta,etaa-deta/2,etab+deta/2);
+baseT = interp1(eta,baseT,etaa-deta/2:deta:etab+deta/2,'spline');
+baseTdash = interp1(eta,baseTdash,etaa-deta/2:deta:etab+deta/2,'spline');
+eta = interp1(eta,eta,etaa-deta/2:deta:etab+deta/2,'spline');
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
 
@@ -75,25 +90,14 @@ q0sol(:,2)=2*kappa*vg(1,:)*exp(2*kappa*(x1a-0.5*dx1));
 
 %% marching downstream
 
+% actual size for loops neglecting ghost nodes
 Nx=length(eta)-2;
-
-for i = 2:Nx+1
-    
-    % march T0
+for i = 2:Nx+2
+    % march T0sol
     for j=1:Neta+2
         T0sol(j,i+1) = T0sol(j,i) - dx1*(baseTdash(j)/baseT(j))*v0sol(j,i);
     end
-    
-    % calculate matrix A
-    b=1-2./((khat.^2).*(baseT.^2).*deta.^2);
-    c=baseTdash./((khat.^2).*(baseT.^3).*2.*deta) ...
-        + 1./((khat.^2).*(baseT.^2).*(deta^2));
-    a=-baseTdash./((khat.^2).*(baseT.^3).*2.*deta) ...
-        + 1./((khat.^2).*(baseT.^2).*(deta.^2));
-    T = b.*diag(ones(length(eta),1)) + c.*diag(ones(length(eta)-1,1),1)...
-        + a.*diag(ones(length(eta)-1,1),-1);
-    
-    % create matrix A
+    % create matrix A (see notes)
     A = zeros(Neta+2);
     for j = 2:Nx+1
     A(j, j-1) = -(1)/((beta^2)*(baseT(j)^2)*(deta^2)) ...
@@ -102,24 +106,36 @@ for i = 2:Nx+1
     A(j, j+1) =  -(1)/((beta^2)*(baseT(j)^2)*(deta^2)) ...
         + (2*baseTdash(j))/((beta^2)*(baseT(j)^3)*(2*deta));
     end
-    % with bcs
-    A(1,1)=0.5; A(1,2)=0.5; A(Nx+2,Nx+1)=0.5; A(Nx+2,Nx+2)=0.5;
-    
-    % create matrix B
+    % with bcs 
+    A(1,1)=1-2/((beta^2)*(baseT(1)^2)*(deta^2))...
+        -6*baseTdash(1)/((beta^2)*(baseT(1)^3)*(2*deta));
+    A(1,2)=5/((beta^2)*(baseT(1)^2)*(deta^2))...
+        +8*baseTdash(1)/((beta^2)*(baseT(1)^3)*(2*deta));
+    A(1,3)=-4/((beta^2)*(baseT(1)^2)*(deta^2))...
+        -2*baseTdash(1)/((beta^2)*(baseT(1)^3)*(2*deta));
+    A(1,4)=1/((beta^2)*(baseT(1)^2)*(deta^2));
+    A(Nx+2,Nx-1)=1/((beta^2)*(baseT(end)^2)*(deta^2));
+    A(Nx+2,Nx)=-4/((beta^2)*(baseT(end)^2)*(deta^2))...
+        +2*baseTdash(end)/((beta^2)*(baseT(end)^3)*(2*deta));
+    A(Nx+2,Nx+1)=5/((beta^2)*(baseT(end)^2)*(deta^2))...
+        -8*baseTdash(end)/((beta^2)*(baseT(end)^3)*(2*deta));
+    A(Nx+2,Nx+2)=1-2/((beta^2)*(baseT(end)^2)*(deta^2))...
+        +6*baseTdash(end)/((beta^2)*(baseT(end)^3)*(2*deta));
+    % create matrix B (see notes)
     B = zeros(Neta+2);
     for j = 1:Nx+2
     B(j, j) = const*baseT(j)^(-1);
     end
-    
-    % Calculate q0
+    % Calculate q0sol
     q0sol(:,i+1)=(A\B)*T0sol(:,i+1);
-    
-    % Calculate v0
-    v0sol(:,i+1) = v0sol(:,i) + dx1*q0sol(:,i);
-    
-    
+    % Calculate v0sol
+    v0sol(:,i+1) = v0sol(:,i) + dx1*q0sol(:,i+1); 
 end
 
-contourf(x1,eta,v0sol)
+%% plotting
+
+% contour plot of velocity evolution on whole domain 
+contourf(x1,eta,v0sol,20)
 colorbar
+
 
