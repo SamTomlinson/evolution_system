@@ -34,27 +34,20 @@ beta=eigval;
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
 
-%% change folder for rayeligh initial condtions
+%% rayeligh initial condtions
 
-cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system/Rayleigh_IC'
+cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/shooting_rayleigh_ic'
 
-% sovle for base flow 
+% paramters required in base flow
 C=0.509; Pr=1; D=1; 
-% const is Gstar-Q
-const=1;
-[eta,baseT,baseTdash,baseU,baseUdash] = baseflow(C,Pr,D,deta,etaa-deta/2,etab+deta/2);
-
-baseT = interp1(eta,baseT,etaa-deta/2:deta:etab+deta/2,'spline');
-baseTdash = interp1(eta,baseTdash,etaa-deta/2:deta:etab+deta/2,'spline');
-baseU = interp1(eta,baseU,etaa-deta/2:deta:etab+deta/2,'spline');
-baseUdash = interp1(eta,baseUdash,etaa-deta/2:deta:etab+deta/2,'spline');
-eta=-deta/2:deta:Leta+deta/2;
-
-% input an initial condition
+% INPUT : spanwise wavenumber
 khat=1;
-[eta, v2,eigval] = shooting_method(@fun,deta,0.01,etaa-deta/2,etab+deta/2,[0,0],'ff');
-% calculate beta from shooting method
+% calculate solution using shooting method
+[~, v1,eigval] = shooting_gotler3(@gotler,deta,etaa-deta/2,etab+deta/2,khat);
+% calculate beta using shooting method
 kappa=eigval;
+% for checking whether eigenmodes look right
+plot(v1(1,:),eta)
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
 
