@@ -1,13 +1,16 @@
 % Finite differences code for solution of Gotler system 
+
 %clear all; close all; clc;
 
 %% create grid
-Lx1=6; Leta=10;
+
+Lx1=10; Leta=10;
 Nx1 = 150; Neta = 100;
 dx1 = Lx1/Nx1; deta = Leta/Neta;
 x1 = (-Lx1/2-1.5*dx1:dx1:Lx1/2+0.5*dx1)'; eta = -deta/2:deta:Leta+deta/2;
 
-%% change folder
+%% change folder for gotler initial condtions
+
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/shooting_gotler'
 
 % sovle for base flow 
@@ -24,9 +27,33 @@ eta=-deta/2:deta:Leta+deta/2;
 
 % input an initial condition
 khat=1;
-[eta, v,eigval] = shooting_gotler3(@gotler,deta,-deta/2,Leta+deta/2,khat);
+[eta, v1,eigval] = shooting_gotler3(@gotler,deta,-deta/2,Leta+deta/2,khat);
 % calculate beta from shooting method
 beta=eigval;
+
+cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
+
+%% change folder for rayeligh initial condtions
+
+cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system/Rayleigh_IC'
+
+% sovle for base flow 
+C=0.509; Pr=1; D=1; 
+% const is Gstar-Q
+const=1;
+[eta,baseT,baseTdash,baseU,baseUdash] = baseflow(C,Pr,D,deta,-deta/2,Leta+deta/2);
+
+baseT = interp1(eta,baseT,-deta/2:deta:Leta+deta/2,'spline');
+baseTdash = interp1(eta,baseTdash,-deta/2:deta:Leta+deta/2,'spline');
+baseU = interp1(eta,baseU,-deta/2:deta:Leta+deta/2,'spline');
+baseUdash = interp1(eta,baseUdash,-deta/2:deta:Leta+deta/2,'spline');
+eta=-deta/2:deta:Leta+deta/2;
+
+% input an initial condition
+khat=1;
+[eta, v2,eigval] = shooting_method(@fun,deta,0.01,-deta/2,Leta+deta/2,[0,0],'ff');
+% calculate beta from shooting method
+kappa=eigval;
 
 cd '/Users/samtomlinson/Documents/CDT_year_1/MRESproject/Codes/evolution_system'
 
@@ -38,20 +65,33 @@ q0sol=zeros(length(eta),length(x1));
 T0sol=zeros(length(eta),length(x1));
 % u0sol=zeros(length(eta),length(x1));
 
-% set up initial conditions to the left
-v0sol(:,1)=v(1,:)*exp(beta*(-Lx1/2-1.5*dx1));
-v0sol(:,2)=v(1,:)*exp(beta*(-Lx1/2-0.5*dx1));
+% set up initial conditions to the left for gotler 
+v0sol(:,1)=v1(1,:)*exp(beta*(-Lx1/2-1.5*dx1));
+v0sol(:,2)=v1(1,:)*exp(beta*(-Lx1/2-0.5*dx1));
 % u0sol(:,1)=-trapz(baseU.*v0sol(:,1)/baseT);
 % u0sol(:,2)=-trapz(baseU.*v0sol(:,2)/baseT);
-T0sol(:,1)=((-baseTdash.*v(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1));
-T0sol(:,2)=((-baseTdash.*v(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1));
-q0sol(:,1)=zeros(size(v(1,:)));
+T0sol(:,1)=((-baseTdash.*v1(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1));
+T0sol(:,2)=((-baseTdash.*v1(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1));
+q0sol(:,1)=zeros(size(v1(1,:)));
 q0sol(:,2)=(v0sol(:,2)-v0sol(:,1))/(dx1);
+
+% set up initial conditions to the left for rayleigh aswell 
+
+v0sol(:,1)=v0sol(:,1)+(v2(1,:)*exp(2*kappa*(-Lx1/2-1.5*dx1)))';
+v0sol(:,2)=v0sol(:,2)+(v2(1,:)*exp(2*kappa*(-Lx1/2-0.5*dx1)))';
+% u0sol(:,1)=-trapz(baseU.*v0sol(:,1)/baseT);
+% u0sol(:,2)=-trapz(baseU.*v0sol(:,2)/baseT);
+T0sol(:,1)=T0sol(:,1)+(((-baseTdash.*v2(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1)))';
+T0sol(:,2)=T0sol(:,2)+(((-baseTdash.*v2(1,:))./(baseT.*khat))*exp(beta*(-Lx1/2-1.5*dx1)))';
+q0sol(:,1)=q0sol(:,1)+(zeros(size(v2(1,:))))';
+q0sol(:,2)=q0sol(:,2)+(v0sol(:,2)-v0sol(:,1))/(dx1);
 
 
 %% marching downstream
 
-for i = 2:Nx1+1
+Nx=length(eta)-2;
+
+for i = 2:Nx+1
     
     % march T0
     for j=1:Neta+2
